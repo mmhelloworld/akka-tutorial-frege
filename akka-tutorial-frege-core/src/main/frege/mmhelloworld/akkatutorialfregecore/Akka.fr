@@ -1,7 +1,7 @@
 module mmhelloworld.akkatutorialfregecore.Akka where
 
 data ActorSystem = native akka.actor.ActorSystem where
-    native shutdown :: MutableIO ActorSystem -> IO ()
+    native shutdown :: Mutable s ActorSystem -> ST s ()
     native create akka.actor.ActorSystem.create :: String -> STMutable s ActorSystem
     native actorOf :: Mutable s ActorSystem -> Props -> String -> STMutable s ActorRef
     
