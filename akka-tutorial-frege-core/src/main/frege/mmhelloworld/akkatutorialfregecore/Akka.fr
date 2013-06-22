@@ -1,0 +1,62 @@
+module mmhelloworld.akkatutorialfregecore.Akka where
+
+data ActorSystem = native akka.actor.ActorSystem where
+    native shutdown :: MutableIO ActorSystem -> IO ()
+    native create akka.actor.ActorSystem.create :: String -> STMutable s ActorSystem
+    native actorOf :: Mutable s ActorSystem -> Props -> String -> STMutable s ActorRef
+    
+data Actor = native akka.actor.Actor where
+    native self :: Mutable s Actor -> STMutable s ActorRef
+    native unhandled :: Mutable s Actor -> a -> ST s ()
+    native sender :: Mutable s Actor -> STMutable s ActorRef
+    
+data ActorContext = native akka.actor.ActorContext where
+    native actorOf :: Mutable s ActorContext -> Props -> String -> STMutable s ActorRef
+    native stop :: Mutable s ActorContext -> Mutable s ActorRef -> ST s ()
+    native system :: Mutable s ActorContext -> STMutable s ActorSystem
+    
+data ActorRef = native akka.actor.ActorRef where
+    native tell :: Mutable s ActorRef -> a -> ST s ()
+    native tellSender tell :: Mutable s ActorRef -> a -> Mutable s ActorRef -> ST s ()
+    
+data Props = pure native akka.actor.Props where
+    native forClass new :: Class a -> ST s Props
+    native new :: () -> ST s Props
+    native fromUntypedFactory new :: Mutable s UntypedActorFactory -> ST s Props
+    native withRouter :: Props -> Mutable s RouterConfig -> ST s Props
+    native forUntypedActor mmhelloworld.akkatutorialfregeadapter.Actors.propsUntypedActor ::
+        (Mutable s UntypedActor -> msg -> ST s ()) -> ST s Props
+    native forStatefulUntypedActor mmhelloworld.akkatutorialfregeadapter.Actors.propsStatefulActor ::
+        (Mutable s UntypedActor -> ST s state) -> 
+            (Mutable s UntypedActor -> state -> msg -> ST s state) -> ST s Props
+            
+    
+data UntypedActorFactory = native akka.actor.UntypedActorFactory where
+    native new mmhelloworld.akkatutorialfregeadapter.Actors.untypedActorFactory ::
+        (STMutable s Actor) -> STMutable s UntypedActorFactory
+        
+data UntypedActor = native akka.actor.UntypedActor where
+    native getContext :: Mutable s UntypedActor -> STMutable s ActorContext
+    native getSelf :: Mutable s UntypedActor -> STMutable s ActorRef
+    native forUntypedActor mmhelloworld.akkatutorialfregeadapter.Actors.untypedActor ::
+        (Mutable s UntypedActor -> msg -> ST s ()) -> STMutable s UntypedActor
+    
+data RoundRobinRouter = native akka.routing.RoundRobinRouter where
+    native new :: Int -> STMutable s RoundRobinRouter
+    
+data RouterConfig = native akka.routing.RouterConfig
+
+data StatefulUntypedActor = native mmhelloworld.akkatutorialfregeadapter.Actors.StatefulUntypedActor where
+    native new :: (Mutable s UntypedActor -> ST s state) ->
+        (Mutable s UntypedActor -> state -> msg -> ST s newstate) ->
+            STMutable s StatefulUntypedActor
+            
+data Duration = pure native scala.concurrent.duration.Duration where
+    native create scala.concurrent.duration.Duration.create :: 
+        Long -> TimeUnit -> ST s Duration
+    pure native toString :: Duration -> String
+
+data TimeUnit = pure native java.util.concurrent.TimeUnit where
+    pure native milliseconds java.util.concurrent.TimeUnit.MILLISECONDS :: TimeUnit
+    
+native currentTimeMillis java.lang.System.currentTimeMillis :: () -> IO Long

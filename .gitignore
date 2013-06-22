@@ -1,0 +1,39 @@
+*.class
+*~
+
+# Package Files #
+######################
+target/
+bin/
+tmp/
+dist/
+build/
+*.jar
+*.war
+*.ear
+
+# Eclipse #
+############
+.settings/
+.project
+.metadata
+.externalToolBuilders/
+*.launch
+.classpath
+
+# Logs and databases #
+######################
+*.log
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.bak

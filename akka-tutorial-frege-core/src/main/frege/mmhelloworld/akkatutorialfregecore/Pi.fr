@@ -1,0 +1,75 @@
+module mmhelloworld.akkatutorialfregecore.Pi where
+import mmhelloworld.akkatutorialfregecore.Akka
+
+data PiMessage = Calculate | 
+                Work {start :: Int, nrOfElements :: Int} |
+                Result {value :: Double} | 
+                PiApproximation {pi :: Double, duration :: Duration}
+
+data Worker = private Worker where
+    calculatePiFor :: Int -> Int -> Double
+    calculatePiFor !start !nrOfElements = loop start (start + nrOfElements - 1) 0.0 f where
+        loop !from !to !acc f = if from > to then acc
+                                else loop (from + 1) to (f acc from) f
+        f !acc !i = acc + (4.0 * fromInt (1 - (i `mod` 2) * 2) / fromInt (2 * i + 1))
+    
+    onReceive :: Mutable s UntypedActor -> PiMessage -> ST s ()
+    onReceive actor Work{start=start, nrOfElements=nrOfElements} = do
+        sender <- actor.sender
+        self <- actor.getSelf
+        sender.tellSender (Result $ calculatePiFor start nrOfElements) self 
+        
+data Master = private Master {
+    nrOfWorkers :: Int,
+    nrOfMessages :: Int,
+    nrOfElements :: Int,
+    listener :: MutableIO ActorRef,
+    pi :: Double,
+    nrOfResults :: Int,
+    workerRouter :: MutableIO ActorRef,
+    start :: Long } where
+    
+    initMaster :: Int -> Int -> Int -> MutableIO ActorRef -> MutableIO UntypedActor -> IO Master
+    initMaster nrOfWorkers nrOfMessages nrOfElements listener actor = do
+        props <- Props.forUntypedActor Worker.onReceive
+        router <- RoundRobinRouter.new nrOfWorkers
+        context <- actor.getContext
+        workerRouter <- props.withRouter router >>= (\p -> context.actorOf p "workerRouter")
+        now <- currentTimeMillis ()
+        return $ Master nrOfWorkers nrOfMessages nrOfElements listener 0.0 0 workerRouter now
+    
+    onReceive :: MutableIO UntypedActor -> Master -> PiMessage -> IO Master
+    onReceive actor master Calculate = do
+        self <- actor.getSelf
+        let tellWorker start = master.workerRouter.tellSender (work start) self
+            work start = Work (start * master.nrOfElements) master.nrOfElements
+        forM_ [0 .. master.nrOfMessages - 1] tellWorker
+        return master
+    onReceive actor master (Result newPi) = do
+        let (!newNrOfResults, !pi) = (master.nrOfResults + 1, master.pi + newPi)
+        when (newNrOfResults == master.nrOfMessages) $ do
+            self <- actor.getSelf
+            now <- currentTimeMillis ()
+            duration <- Duration.create (now - master.start) TimeUnit.milliseconds
+            master.listener.tellSender (PiApproximation pi duration) self
+            actor.getContext >>= (\context -> context.stop self)
+        return master.{pi=pi, nrOfResults=newNrOfResults}
+
+data Listener = private Listener where
+    onReceive :: MutableIO UntypedActor -> PiMessage -> IO ()
+    onReceive actor (PiApproximation pi duration) = do
+        println $ "Pi approximation: " ++ show pi
+        println $ "Calculation time: " ++ duration.toString
+        actor.getContext >>= ActorContext.system >>= ActorSystem.shutdown
+
+calculate nrOfWorkers nrOfElements nrOfMessages = do
+    system <- ActorSystem.create "PiSystem"
+    listener <- Props.forUntypedActor Listener.onReceive >>= flip system.actorOf "listener"
+    let constructor = Master.initMaster nrOfWorkers nrOfMessages nrOfElements listener
+        newMaster = StatefulUntypedActor.new constructor Master.onReceive
+    factory <- UntypedActorFactory.new newMaster
+    masterActor <- Props.fromUntypedFactory factory >>= flip system.actorOf "master"
+    masterActor.tell Calculate
+    getLine >> return () --Not to exit until done
+    
+main _ = calculate 4 10000 10000
