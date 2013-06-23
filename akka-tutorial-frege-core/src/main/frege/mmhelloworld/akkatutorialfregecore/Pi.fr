@@ -5,19 +5,18 @@ data PiMessage = Calculate |
                 Work {start :: Int, nrOfElements :: Int} |
                 Result {value :: Double} | 
                 PiApproximation {pi :: Double, duration :: Duration}
-
+                
 data Worker = private Worker where
     calculatePiFor :: Int -> Int -> Double
-    calculatePiFor !start !nrOfElements = loop start nrOfElements 0.0 f where
-        loop !curr !n !acc f = if n == 0 then acc
-                                else loop (curr + 1) (n - 1) (f acc curr) f
-        f !acc !i = acc + (4.0 * fromInt (1 - (i `mod` 2) * 2) / fromInt (2 * i + 1))
+    calculatePiFor !start !nrOfElements = loop start nrOfElements 0.0 where
+        loop !curr !n !acc = if n == 0 then acc
+                            else loop (curr + 1) (n - 1) (acc + f) where
+            !f = 4.0 * fromInt (1 - (curr `mod` 2) * 2) / fromInt (2 * curr + 1)
     
     onReceive :: Mutable s UntypedActor -> PiMessage -> ST s ()
     onReceive actor Work{start=start, nrOfElements=nrOfElements} = do
         sender <- actor.sender
-        self <- actor.getSelf
-        sender.tellSender (Result $ calculatePiFor start nrOfElements) self 
+        actor.getSelf >>= sender.tellSender (Result $ calculatePiFor start nrOfElements)
         
 data Master = private Master {
     nrOfWorkers :: Int,
@@ -70,6 +69,5 @@ calculate nrOfWorkers nrOfElements nrOfMessages = do
     factory <- UntypedActorFactory.new newMaster
     masterActor <- Props.fromUntypedFactory factory >>= flip system.actorOf "master"
     masterActor.tell Calculate
-    getLine >> return () --Not to exit until done
     
-main _ = calculate 4 10000 10000
+main _ = calculate 4 10000 10000 >> getChar >> return ()
