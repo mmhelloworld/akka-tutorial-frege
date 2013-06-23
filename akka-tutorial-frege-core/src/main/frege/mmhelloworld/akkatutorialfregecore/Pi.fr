@@ -8,9 +8,9 @@ data PiMessage = Calculate |
 
 data Worker = private Worker where
     calculatePiFor :: Int -> Int -> Double
-    calculatePiFor !start !nrOfElements = loop start (start + nrOfElements - 1) 0.0 f where
-        loop !from !to !acc f = if from > to then acc
-                                else loop (from + 1) to (f acc from) f
+    calculatePiFor !start !nrOfElements = loop start nrOfElements 0.0 f where
+        loop !curr !n !acc f = if n == 0 then acc
+                                else loop (curr + 1) (n - 1) (f acc curr) f
         f !acc !i = acc + (4.0 * fromInt (1 - (i `mod` 2) * 2) / fromInt (2 * i + 1))
     
     onReceive :: Mutable s UntypedActor -> PiMessage -> ST s ()
